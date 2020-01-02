@@ -9,16 +9,16 @@ import javax.persistence.Id;
 public class Notebook {
 	@Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-	private int  id;
+	private long  id;
 	private String name;
 	private String description;
-	private int user_id;
-	private int lang_id;
+	private long user_id;
+	private long lang_id;
 	
-	public int getId() {
+	public long getId() {
 		return id;
 	}
-	public void setId(int id) {
+	public void setId(long id) {
 		this.id = id;
 	}
 	public String getDescription() {
@@ -33,16 +33,24 @@ public class Notebook {
 	public void setName(String name) {
 		this.name = name;
 	}
-	public int getUser_id() {
+	public long getUser_id() {
 		return user_id;
 	}
 	public void setUser_id(int user_id) {
 		this.user_id = user_id;
 	}
-	public int getLang_id() {
+	public long getLang_id() {
 		return lang_id;
 	}
 	public void setLang_id(int lang_id) {
 		this.lang_id = lang_id;
 	}
+	public Notebook() {};
+	public Notebook(String name, long user_id, long lang_id, String description) {
+		this.name = name;
+		this.user_id = user_id;
+		this.lang_id = lang_id;
+		this.description = description;
+	}
+	
 }

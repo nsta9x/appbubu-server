@@ -20,9 +20,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nsta.w2.Models.Example;
 import com.nsta.w2.Models.MappingNotebook;
 import com.nsta.w2.Models.MappingTranslate;
+import com.nsta.w2.Models.Notebook;
 import com.nsta.w2.Models.Word;
 import com.nsta.w2.Repository.ExampleRepository;
 import com.nsta.w2.Repository.MappingNotebookRepository;
+import com.nsta.w2.Repository.NotebookRepository;
 import com.nsta.w2.Repository.TranslateRepository;
 import com.nsta.w2.Repository.WordRepository;
 
@@ -43,6 +45,9 @@ public class WordController {
 	
 	@Autowired
 	ExampleRepository exRepository;
+	
+	@Autowired
+	NotebookRepository nbRepository;
 	
 	@PostMapping("/word")
 	public ResponseEntity<Map<String, Object>> getWordDetail(@RequestBody String req)
@@ -109,10 +114,12 @@ public class WordController {
 		StringBuilder ex_Ids = new StringBuilder();
 		Map<String, Object> res = new HashMap();
 		try {
+			long user_id = Long.parseLong((new JSONObject(req).get("user_id").toString()));
+			
 			//Save word:
 			String S_word = (new JSONObject(req).get("word")).toString();
 			Word newW = mapper.readValue(S_word, Word.class);
-			if(checkIfWordExist(newW)) {
+			if(checkWordExistId(newW) != -1) {
 				res.put(RES_CODE, ERR_WORD_EXISTED);
 				return new ResponseEntity<Map<String, Object>>(res, HttpStatus.CREATED);
 			}
@@ -135,19 +142,26 @@ public class WordController {
 
 			//Assign new Notebook and example mapping:
 			long notebook_id = Long.parseLong((new JSONObject(req).get("notebook_id")).toString());
-			
 			MappingNotebook mn = new MappingNotebook(word_id, notebook_id, ex_Ids.toString());
 			mnRepository.save(mn);
 			
 			//Save translate words:
 			List<Word> translate = newW.getTranslate();
 			translate.forEach(w -> {
-				long id2 = wordRepository.save(w).getId();
+				long id2 = checkWordExistId(w);
+				if(id2 == -1) {
+					id2 = wordRepository.save(w).getId();
+					Long nb_default_id = findOrCreateDefaultNotebook(user_id, w.getLang_id());
+					MappingNotebook mn_t = new MappingNotebook(id2, nb_default_id, null);
+					mnRepository.save(mn_t);
+				}
+				
 				MappingTranslate m1 = new MappingTranslate(word_id, id2);
 				MappingTranslate m2 = new MappingTranslate(id2, word_id);
 				translateRepository.save(m1);
 				translateRepository.save(m2);
 			});
+			
 			res.put(RES_CODE, HttpStatus.OK);
 			return new ResponseEntity<Map<String, Object>>(res, HttpStatus.OK);
 		} catch(Exception e) {
@@ -155,13 +169,23 @@ public class WordController {
 		}
 	}
 	
-	boolean checkIfWordExist(Word w) {
+	private long findOrCreateDefaultNotebook(long user_id, int lang_id) {
+		Notebook df = nbRepository.findNotebookDefault(user_id, lang_id);
+		if(df != null) {
+			return df.getId();		
+		}
+		df = new Notebook("Default", user_id, lang_id, "");
+		long notebookdf_id = nbRepository.save(df).getId();
+		return notebookdf_id;
+	}
+
+	private long checkWordExistId(Word w) {
 		String content = w.getContent();
 		int type = w.getType();
 		int lang_id = w.getLang_id();
 		Word result = wordRepository.findWordExist(content, type, lang_id);
-		boolean exist = result == null ? false : true;
-		return exist;
+		if(result == null) return -1;
+		return result.getId();
 	}
 	
 	@PostMapping(path = "/modword", consumes = "application/json", produces = "application/json")

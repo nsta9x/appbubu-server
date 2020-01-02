@@ -20,4 +20,9 @@ public interface NotebookRepository extends CrudRepository<Notebook, Long>{
 	nativeQuery = true)
 	Notebook findNotebookById(long notebook_id);
 	
+	@Query(
+	value = "SELECT * FROM notebook n WHERE n.user_id = ?1 and n.lang_id = ?2 and n.name = 'Default'",
+	nativeQuery = true)
+	Notebook findNotebookDefault(long user_id, long lang_id);
+	
 }
